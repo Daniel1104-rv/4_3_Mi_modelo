@@ -74,10 +74,16 @@ function init() {
     container.appendChild(stats.dom);
 
     /* Botón SIGUIENTE */
-    document.getElementById("btnNext").addEventListener("click", () => {
-    currentIndex = (currentIndex + 1) % KEY_TO_ANIM.length;
+   document.getElementById("btnNext").addEventListener("click", () => {
+    currentIndex++;
+
+    if (currentIndex >= KEY_TO_ANIM.length) {
+        currentIndex = 0; // volver al inicio siempre
+    }
+
     playByName(KEY_TO_ANIM[currentIndex]);
 });
+
 
     
 
@@ -142,11 +148,19 @@ function playByName(name) {
     if (!clip || !mixer) return;
 
     const next = mixer.clipAction(clip);
-    if (currentAction) currentAction.crossFadeTo(next, 0.25, false);
+
+    // 🔥 REINICIAR SIEMPRE LA ANIMACIÓN
+    next.reset();
+
+    // transiciones suaves
+    if (currentAction && currentAction !== next) {
+        currentAction.crossFadeTo(next, 0.25, false);
+    }
 
     next.play();
     currentAction = next;
 }
+
 
 function startAction(clip) {
     currentAction = mixer.clipAction(clip);
