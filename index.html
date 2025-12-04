@@ -28,30 +28,30 @@
     <script type="module" src="./js/main.js"></script>
 
 
-    <style>
+   <style>
   .ar-controls {
     position: fixed;
-     top: 20px;         /* ⬅️ antes estaba bottom */
-    right: 20px;       /* ⬅️ mover al lado derecho */
-    transform: translateX(-50%);
-    z-index: 9999;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+    display: none;
   }
 
-  .ar-btn {
+  #btnNext {
     padding: 12px 24px;
-    background: rgba(0, 255, 0, 0.8);
+    background: rgba(0,255,0,0.85);
     border-radius: 12px;
     color: black;
-    font-weight: bold;
     border: 2px solid black;
+    font-weight: bold;
     font-size: 16px;
-     backdrop-filter: blur(3px);  /* 🔥 se ve más profesional */
   }
 </style>
 
 <div class="ar-controls">
-  <button id="btnNext" class="ar-btn">Siguiente</button>
+  <button id="btnNext">SIGUIENTE</button>
 </div>
+
 
 </body>
 </html>
