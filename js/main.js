@@ -28,6 +28,13 @@ let currentAction = null;
 
 const params = { current: 'Capoeira' };
 
+/* ===== NUEVO: retícula para el piso ===== */
+let reticle;
+
+/* ===== NUEVO: referencia de frame XR ===== */
+let hitTestSource = null;
+let hitTestRequested = false;
+
 init();
 
 /* ===================== INIT ====================== */
@@ -55,7 +62,9 @@ function init() {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
-    document.body.appendChild(ARButton.createButton(renderer));
+    document.body.appendChild(ARButton.createButton(renderer, {
+        requiredFeatures: ['hit-test']   // 🔥 NECESARIO PARA PISO REAL
+    }));
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.update();
@@ -74,16 +83,26 @@ function init() {
         if (n >= 1 && n <= 8) playByName(KEY_TO_ANIM[n - 1]);
     });
 
-    /* Colocar modelo más lejos y tamaño correcto */
-    renderer.domElement.addEventListener("click", () => {
-        if (!object) return;
-        const pos = renderer.xr.getCamera(camera).position;
+    /* ===================== RETÍCULA DE PISO ====================== */
+    reticle = new THREE.Mesh(
+        new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+    );
+    reticle.matrixAutoUpdate = false;
+    reticle.visible = false;
+    scene.add(reticle);
 
-        object.position.set(
-            pos.x,
-            pos.y - 1.4,  // Ajuste de altura
-            pos.z - 4     // ¡Ahora sí lejos! Antes era -2
-        );
+    /* ===================== COLOCAR MODELO SOBRE EL PISO REAL ====================== */
+    renderer.domElement.addEventListener("click", () => {
+        if (!reticle.visible || !object) return;
+
+        const pose = new THREE.Vector3();
+        pose.setFromMatrixPosition(reticle.matrix);
+
+        object.position.copy(pose);     // 💥 EXACTO AL PISO REAL
+        object.position.y += 0.02;      // ajustito para que no se hunda
+
+        console.log("Modelo colocado en el piso real:", pose);
     });
 
     renderer.setAnimationLoop(animate);
@@ -163,16 +182,61 @@ function crossFade(nextAction, duration) {
     currentAction = nextAction;
 }
 
-/* ===================== UTILS ====================== */
+/* ===================== HIT TEST PARA PISO REAL ====================== */
+function requestHitTestSource(session) {
+
+    const viewerRefSpace = session.requestReferenceSpace('viewer');
+
+    viewerRefSpace.then(refSpace => {
+        session.requestHitTestSource({ space: refSpace }).then(source => {
+            hitTestSource = source;
+        });
+    });
+
+    session.addEventListener("end", () => {
+        hitTestSource = null;
+        hitTestRequested = false;
+    });
+}
+
+/* ===================== ANIMACIóN ====================== */
+function animate(timestamp, frame) {
+
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+
+    /* ===================== PISO REAL ====================== */
+    if (frame) {
+        const session = renderer.xr.getSession();
+
+        if (!hitTestRequested) {
+            requestHitTestSource(session);
+            hitTestRequested = true;
+        }
+
+        if (hitTestSource) {
+            const refSpace = renderer.xr.getReferenceSpace();
+            const hits = frame.getHitTestResults(hitTestSource);
+
+            if (hits.length > 0) {
+                const hit = hits[0];
+                const pose = hit.getPose(refSpace);
+
+                reticle.visible = true;
+                reticle.matrix.fromArray(pose.transform.matrix);
+            } else {
+                reticle.visible = false;
+            }
+        }
+    }
+
+    renderer.render(scene, camera);
+    stats.update();
+}
+
+/* ===================== RESIZE ====================== */
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate() {
-    const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
-    renderer.render(scene, camera);
-    stats.update();
 }
