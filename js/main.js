@@ -3,6 +3,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
 
 let camera, scene, renderer, stats, object, loader, guiMorphsFolder;
 let mixer;
@@ -22,60 +23,43 @@ const KEY_TO_ANIM = [
     'Sitting Clap'
 ];
 
+let currentIndex = 0;
 const animationsMap = new Map();
 let currentAction = null;
-let currentIndex = 0; // para el botón SIGUIENTE
 
-const params = { current: 'Capoeira' };
-
-/* ====== RETÍCULA Y HIT TEST ====== */
-let reticle;
-let hitTestSource = null;
-let hitTestRequested = false;
+let reticle, hitTestSource = null, hitTestRequested = false;
 
 init();
 
-/* ================================================= */
 /* ===================== INIT ====================== */
-/* ================================================= */
 function init() {
 
     const container = document.createElement('div');
     document.body.appendChild(container);
 
-    /* Cámara AR */
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 2000);
 
-    /* Escena */
     scene = new THREE.Scene();
-
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
-    scene.add(hemi);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 3));
 
     loader = new FBXLoader();
 
-    /* Carga modelo base */
     loadBaseModel(BASE_MODEL).then(() => {
-        preloadAnimations(KEY_TO_ANIM.filter(a => a !== BASE_MODEL));
+        preloadAnimations(KEY_TO_ANIM.slice(1));
     });
 
-    /* Renderer AR */
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
-    /* DOM Overlay para que los botones sí aparezcan en AR */
-    navigator.xr.requestSession("immersive-ar", {
-        requiredFeatures: ["hit-test"],
-        optionalFeatures: ["dom-overlay"],
+    /* 🔥 ARButton con DOM Overlay */
+    document.body.appendChild(ARButton.createButton(renderer, {
+        requiredFeatures: ['hit-test'],
+        optionalFeatures: ['dom-overlay'],
         domOverlay: { root: document.body }
-    }).then(session => {
-        renderer.xr.setSession(session);
-    });
+    }));
 
-    /* Mostrar botón SIGUIENTE dentro del AR */
     renderer.xr.addEventListener("sessionstart", () => {
         document.querySelector(".ar-controls").style.display = "block";
     });
@@ -84,36 +68,18 @@ function init() {
         document.querySelector(".ar-controls").style.display = "none";
     });
 
-    /* OrbitControls (solo fuera del AR) */
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.update();
+    new OrbitControls(camera, renderer.domElement);
 
     stats = new Stats();
     container.appendChild(stats.dom);
 
-    /* GUI */
-    const gui = new GUI();
-    gui.add(params, 'current').name("Animación actual").listen();
-    guiMorphsFolder = gui.addFolder("Morphs").hide();
-
-    window.addEventListener('resize', onWindowResize);
-
-    /* Teclas 1–8 para animaciones */
-    window.addEventListener('keydown', e => {
-        const n = parseInt(e.key);
-        if (n >= 1 && n <= 8) playByName(KEY_TO_ANIM[n - 1]);
+    /* Botón SIGUIENTE */
+    document.getElementById("btnNext").addEventListener("click", () => {
+        currentIndex = (currentIndex + 1) % KEY_TO_ANIM.length;
+        playByName(KEY_TO_ANIM[currentIndex]);
     });
 
-    /* ====== BOTÓN SIGUIENTE ====== */
-    const btnNext = document.getElementById("btnNext");
-    btnNext.addEventListener("click", () => {
-        currentIndex++;
-        if (currentIndex >= KEY_TO_ANIM.length) currentIndex = 0;
-        const anim = KEY_TO_ANIM[currentIndex];
-        playByName(anim);
-    });
-
-    /* ====== RETÍCULA PARA PISO ====== */
+    /* Retícula */
     reticle = new THREE.Mesh(
         new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
         new THREE.MeshBasicMaterial({ color: 0x00ff00 })
@@ -122,138 +88,91 @@ function init() {
     reticle.visible = false;
     scene.add(reticle);
 
-    /* COLOCAR MODELO EN EL PISO REAL */
+    /* Colocar modelo */
     renderer.domElement.addEventListener("click", () => {
-        if (!reticle.visible || !object) return;
-
-        const p = new THREE.Vector3();
-        p.setFromMatrixPosition(reticle.matrix);
-
-        object.position.copy(p);
-        object.position.y += 0.02; // evitar que se hunda
+        if (reticle.visible && object) {
+            const pos = new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
+            object.position.copy(pos);
+        }
     });
 
     renderer.setAnimationLoop(animate);
 }
 
-/* ========================================================= */
-/* ===================== MODELO FBX ======================== */
-/* ========================================================= */
+/* ===================== CARGA FBX ====================== */
 function loadBaseModel(name) {
-    return new Promise((resolve, reject) => {
-        loader.load(`${ANIM_PATH}${name}.fbx`,
-            group => {
-                if (object) scene.remove(object);
+    return new Promise(resolve => {
 
-                object = group;
+        loader.load(`${ANIM_PATH}${name}.fbx`, group => {
 
-                /* 🔥 ESCALA DEL MODELO (ajustada para AR) */
-                object.scale.set(0.003, 0.003, 0.003);
+            if (object) scene.remove(object);
 
-                scene.add(object);
+            object = group;
+            object.scale.set(0.003, 0.003, 0.003); // tamaño correcto
 
-                mixer = new THREE.AnimationMixer(object);
+            mixer = new THREE.AnimationMixer(object);
+            scene.add(object);
 
-                const clips = object.animations || [];
-                clips.forEach(c => animationsMap.set(c.name || name, c));
+            group.animations.forEach(clip => animationsMap.set(clip.name, clip));
 
-                if (clips.length > 0) {
-                    const first = clips[0];
-                    startAction(first);
-                    params.current = first.name || name;
-                }
+            if (group.animations.length > 0) {
+                startAction(group.animations[0]);
+            }
 
-                resolve();
-            },
-            undefined,
-            err => reject(err)
-        );
+            resolve();
+        });
     });
 }
 
-/* ========================================================= */
-/* ===================== PRECARGA ========================== */
-/* ========================================================= */
+/* ===================== PRECARGA ====================== */
 function preloadAnimations(names) {
     names.forEach(name => {
         loader.load(`${ANIM_PATH}${name}.fbx`, fbx => {
-            if (!fbx.animations.length) return;
-            const clip = fbx.animations[0];
-            clip.optimize();
-            animationsMap.set(name, clip);
+            if (fbx.animations.length)
+                animationsMap.set(name, fbx.animations[0]);
         });
     });
 }
 
-/* ========================================================= */
-/* ===================== ANIMACIONES ======================= */
-/* ========================================================= */
+/* ===================== ANIMACIONES ====================== */
 function playByName(name) {
-    if (!mixer) return;
     const clip = animationsMap.get(name);
-    if (!clip) return;
+    if (!clip || !mixer) return;
 
-    const nextAction = mixer.clipAction(clip, object);
-    crossFade(nextAction, 0.25);
-    params.current = name;
+    const next = mixer.clipAction(clip);
+    if (currentAction) currentAction.crossFadeTo(next, 0.25, false);
+
+    next.play();
+    currentAction = next;
 }
 
 function startAction(clip) {
-    const action = mixer.clipAction(clip);
-    action.reset().fadeIn(0.2).play();
-    currentAction = action;
+    currentAction = mixer.clipAction(clip);
+    currentAction.play();
 }
 
-function crossFade(nextAction, duration) {
-    if (currentAction && currentAction !== nextAction) {
-        nextAction.reset().play();
-        currentAction.crossFadeTo(nextAction, duration, false);
-    } else {
-        nextAction.reset().play();
-    }
-    currentAction = nextAction;
-}
+/* ===================== HIT TEST ====================== */
+function animate(t, frame) {
 
-/* ========================================================= */
-/* ===================== HIT TEST ========================== */
-/* ========================================================= */
-function requestHitTestSource(session) {
-    session.requestReferenceSpace('viewer').then(ref => {
-        session.requestHitTestSource({ space: ref }).then(source => {
-            hitTestSource = source;
-        });
-    });
+    if (mixer) mixer.update(clock.getDelta());
 
-    session.addEventListener("end", () => {
-        hitTestSource = null;
-        hitTestRequested = false;
-    });
-}
-
-/* ========================================================= */
-/* ===================== ANIM LOOP ========================= */
-/* ========================================================= */
-function animate(timestamp, frame) {
-
-    const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
-
-    if (frame) {
-        const session = renderer.xr.getSession();
+    const session = renderer.xr.getSession();
+    if (frame && session) {
 
         if (!hitTestRequested) {
-            requestHitTestSource(session);
+            session.requestReferenceSpace('viewer').then(ref => {
+                session.requestHitTestSource({ space: ref }).then(source => {
+                    hitTestSource = source;
+                });
+            });
             hitTestRequested = true;
         }
 
         if (hitTestSource) {
-            const ref = renderer.xr.getReferenceSpace();
             const hits = frame.getHitTestResults(hitTestSource);
-
             if (hits.length > 0) {
-                const hit = hits[0];
-                const pose = hit.getPose(ref);
-
+                const refSpace = renderer.xr.getReferenceSpace();
+                const pose = hits[0].getPose(refSpace);
                 reticle.visible = true;
                 reticle.matrix.fromArray(pose.transform.matrix);
             } else {
@@ -263,12 +182,4 @@ function animate(timestamp, frame) {
     }
 
     renderer.render(scene, camera);
-    stats.update();
-}
-
-/* ========================================================= */
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
 }

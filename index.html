@@ -2,19 +2,41 @@
 <html lang="es">
 
 <head>
-    <title>FBX AR - Daniel Rodriguez</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daniel AR</title>
     <link type="text/css" rel="stylesheet" href="./css/main.css">
+
+    <style>
+        .ar-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999999;
+            display: none; /* se mostrará al entrar al AR */
+        }
+
+        #btnNext {
+            padding: 14px 24px;
+            background: rgba(0, 255, 0, 0.85);
+            border-radius: 12px;
+            color: black;
+            font-weight: bold;
+            border: 2px solid black;
+            font-size: 16px;
+        }
+    </style>
 </head>
 
 <body>
 
-    <h3 style="color:white; position:absolute; z-index:2;">
-        Daniel Rodríguez Del Valle - AR
-    </h3>
+    <h3 style="color:white; position:absolute; z-index:2;">Daniel Rodriguez Del Valle - AR</h3>
 
-    <!-- Importmap -->
+    <!-- Botón SIGUIENTE -->
+    <div class="ar-controls">
+        <button id="btnNext">SIGUIENTE</button>
+    </div>
+
     <script type="importmap">
     {
         "imports": {
@@ -24,34 +46,7 @@
     }
     </script>
 
-    <!-- Tu main -->
     <script type="module" src="./js/main.js"></script>
-
-
-   <style>
-  .ar-controls {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 999999;
-    display: none;
-  }
-
-  #btnNext {
-    padding: 12px 24px;
-    background: rgba(0,255,0,0.85);
-    border-radius: 12px;
-    color: black;
-    border: 2px solid black;
-    font-weight: bold;
-    font-size: 16px;
-  }
-</style>
-
-<div class="ar-controls">
-  <button id="btnNext">SIGUIENTE</button>
-</div>
-
 
 </body>
 </html>
