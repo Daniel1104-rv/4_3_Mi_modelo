@@ -26,15 +26,11 @@ const KEY_TO_ANIM = [
 const animationsMap = new Map();
 let currentAction = null;
 
-const params = {
-    current: 'Capoeira'
-};
+const params = { current: 'Capoeira' };
 
 init();
 
-/* ================================================= */
 /* ===================== INIT ====================== */
-/* ================================================= */
 function init() {
 
     const container = document.createElement('div');
@@ -49,7 +45,6 @@ function init() {
 
     loader = new FBXLoader();
 
-    /* 🔥 Cargar modelo base (AQUÍ FALLABA) */
     loadBaseModel(BASE_MODEL).then(() => {
         preloadAnimations(KEY_TO_ANIM.filter(a => a !== BASE_MODEL));
     });
@@ -74,37 +69,40 @@ function init() {
 
     window.addEventListener('resize', onWindowResize);
 
-    /* Cambiar animaciones con teclas 1-8 */
     window.addEventListener('keydown', e => {
         const n = parseInt(e.key);
         if (n >= 1 && n <= 8) playByName(KEY_TO_ANIM[n - 1]);
     });
 
-    /* Colocar modelo AR donde toques */
+    /* Colocar modelo más lejos y tamaño correcto */
     renderer.domElement.addEventListener("click", () => {
         if (!object) return;
         const pos = renderer.xr.getCamera(camera).position;
-        object.position.set(pos.x, pos.y - 1.4, pos.z - 2);
+
+        object.position.set(
+            pos.x,
+            pos.y - 1.4,  // Ajuste de altura
+            pos.z - 4     // ¡Ahora sí lejos! Antes era -2
+        );
     });
 
     renderer.setAnimationLoop(animate);
 }
 
-/* ================================================= */
-/* ============= FUNCIÓN QUE FALTABA =============== */
-/* ================================================= */
+/* ===================== CARGA DEL MODELO ====================== */
 function loadBaseModel(name) {
     return new Promise((resolve, reject) => {
         loader.load(
             `${ANIM_PATH}${name}.fbx`,
             (group) => {
 
-                if (object) {
-                    scene.remove(object);
-                }
+                if (object) scene.remove(object);
 
                 object = group;
-                object.scale.set(0.01, 0.01, 0.01);
+
+                /* 🔥 ESCALA PERFECTA PARA WEBXR */
+                object.scale.set(0.0006, 0.0006, 0.0006);
+
                 scene.add(object);
 
                 mixer = new THREE.AnimationMixer(object);
@@ -126,9 +124,7 @@ function loadBaseModel(name) {
     });
 }
 
-/* ================================================= */
-/* ============ PRECARGA DE ANIMACIONES ============ */
-/* ================================================= */
+/* ===================== PRECARGAR ANIMACIONES ====================== */
 function preloadAnimations(names) {
     names.forEach(name => {
         loader.load(`${ANIM_PATH}${name}.fbx`, fbx => {
@@ -140,9 +136,7 @@ function preloadAnimations(names) {
     });
 }
 
-/* ================================================= */
-/* ============ CAMBIAR ANIMACIONES FBX ============ */
-/* ================================================= */
+/* ===================== CAMBIAR ANIMACIÓN ====================== */
 function playByName(name) {
     if (!mixer) return;
     const clip = animationsMap.get(name);
@@ -169,9 +163,7 @@ function crossFade(nextAction, duration) {
     currentAction = nextAction;
 }
 
-/* ================================================= */
 /* ===================== UTILS ====================== */
-/* ================================================= */
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
