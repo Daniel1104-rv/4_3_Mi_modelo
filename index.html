@@ -27,5 +27,30 @@
     <!-- Tu main -->
     <script type="module" src="./js/main.js"></script>
 
+
+    <style>
+  .ar-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+  }
+
+  .ar-btn {
+    padding: 12px 24px;
+    background: rgba(0, 255, 0, 0.8);
+    border-radius: 12px;
+    color: black;
+    font-weight: bold;
+    border: 2px solid black;
+    font-size: 16px;
+  }
+</style>
+
+<div class="ar-controls">
+  <button id="btnNext" class="ar-btn">Siguiente</button>
+</div>
+
 </body>
 </html>

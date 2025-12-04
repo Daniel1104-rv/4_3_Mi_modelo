@@ -104,6 +104,20 @@ function init() {
 
         console.log("Modelo colocado en el piso real:", pose);
     });
+       /* ===== BOTÓN SIGUIENTE ===== */
+let currentIndex = 0; // índice de animación actual
+
+const btnNext = document.getElementById("btnNext");
+btnNext.addEventListener("click", () => {
+
+    currentIndex++;
+    if (currentIndex >= KEY_TO_ANIM.length) currentIndex = 0; // volver al inicio
+
+    const nextAnim = KEY_TO_ANIM[currentIndex];
+    playByName(nextAnim);
+
+    console.log("Animación actual:", nextAnim);
+});
 
     renderer.setAnimationLoop(animate);
 }
