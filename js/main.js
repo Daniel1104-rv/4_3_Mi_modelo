@@ -75,15 +75,11 @@ function init() {
 
     /* Botón SIGUIENTE */
     document.getElementById("btnNext").addEventListener("click", () => {
-        currentIndex = (currentIndex + 1) % KEY_TO_ANIM.length;
-        playByName(KEY_TO_ANIM[currentIndex]);
-    });
-    document.getElementById("btnPrev").addEventListener("click", () => {
-    currentIndex--;
-    if (currentIndex < 0) currentIndex = KEY_TO_ANIM.length - 1;
+    currentIndex = (currentIndex + 1) % KEY_TO_ANIM.length;
     playByName(KEY_TO_ANIM[currentIndex]);
-   });
+});
 
+    
 
     /* Retícula */
     reticle = new THREE.Mesh(
